@@ -14,17 +14,8 @@
 #  You should have received a copy of the GNU Affero General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 #
-from pathlib import Path
 
-from streamlit import bootstrap
-
-
-def run(argv=None):
-    if argv is None:
-        argv = []
-    app_script = str(Path(__file__).with_name('app.py'))
-    bootstrap.run(app_script, f'run {app_script}', argv)
-
+from kiwi_tasting import app
 
 if __name__ == '__main__':
-    run()
+    app.main()

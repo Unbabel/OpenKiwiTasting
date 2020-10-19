@@ -39,15 +39,24 @@ predefined_lines = {
 }
 
 
-@st.cache(allow_output_mutation=True)
-def read_lines(uploaded_file):
-    return [line.decode("utf-8").strip() for line in uploaded_file.readlines()]
-
-
 def probability_to_rgb(probability: float):
     red = min(255, int(2 * probability * 255))
     green = min(255, int(2 * (1 - probability) * 255))
     return f'rgb({red}, {green}, 90)'
+
+
+def anchor_path(path, anchor_dir=None) -> str:
+    if not anchor_dir:
+        anchor_dir = Path(__file__).parent
+    else:
+        anchor_dir = Path(anchor_dir)
+
+    return str((anchor_dir / path).resolve())
+
+
+@st.cache(allow_output_mutation=True)
+def read_lines(uploaded_file):
+    return [line.decode("utf-8").strip() for line in uploaded_file.readlines()]
 
 
 @st.cache(
@@ -72,13 +81,13 @@ def load_model(uploaded_file):
 def main():
     st.beta_set_page_config(
         page_title='Kiwi Tasting - OpenKiwi demonstration',
-        page_icon='./assets/img/logo.ico',
+        page_icon=anchor_path('./assets/img/logo.ico'),
         initial_sidebar_state='expanded',
         layout='wide',
     )
 
     st.sidebar.image(
-        ".`/assets/img/openkiwi-logo-horizontal.png", use_column_width=True
+        anchor_path("./assets/img/openkiwi-logo-horizontal.png"), use_column_width=True
     )
     st.sidebar.title("Kiwi Tasting")
     st.sidebar.markdown("Inspect predictions by OpenKiwi.")
@@ -134,7 +143,8 @@ def main():
     # ---------------------------------------------------------------------------------
     st.header("Build a translation pair")
     st.write(
-        "Select a predefined source sentence and/or edit both source and target sentences."
+        "Select a predefined source sentence and/or edit both source and target "
+        "sentences."
     )
 
     source_sentence = target_sentence = ''
