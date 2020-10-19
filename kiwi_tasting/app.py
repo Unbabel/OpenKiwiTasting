@@ -20,12 +20,16 @@ from tempfile import NamedTemporaryFile
 
 import streamlit as st
 from annotated_text import annotated_text
+from kiwi import load_system
+from kiwi.constants import BAD, OK
 from streamlit.uploaded_file_manager import UploadedFile
 
-from kiwi import load_system
-from kiwi.constants import OK, BAD
-
-from kiwi_tasting.predefined_data import source_sentences, target_sentences, word_tags, sentence_hter
+from kiwi_tasting.predefined_data import (
+    sentence_hter,
+    source_sentences,
+    target_sentences,
+    word_tags,
+)
 
 predefined_lines = {
     'source': source_sentences,

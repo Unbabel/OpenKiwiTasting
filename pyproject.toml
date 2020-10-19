@@ -9,9 +9,12 @@ homepage = 'https://github.com/Unbabel/OpenKiwi-Tasting'
 repository = 'https://github.com/Unbabel/OpenKiwi-Tasting'
 keywords = ['OpenKiwi', 'Quality Estimation', 'Machine Translation', 'Unbabel']
 packages = [
-    {include = "kiwi"},
+    {include = "kiwi_tasting"},
 ]
 include = ['pyproject.toml', 'LICENSE']
+
+[tool.poetry.scripts]
+kiwi-tasting = 'kiwi_tasting.__main__:run'
 
 [tool.poetry.dependencies]
 python = "^3.7"
@@ -22,6 +25,25 @@ st-annotated-text = "^1.0.1"
 [tool.poetry.dev-dependencies]
 black = "^20.8b1"
 isort = "^5.6.4"
+
+[tool.black]
+skip-string-normalization = true  # Don't switch to double quotes
+exclude = '''
+/(
+    \.git
+  | \.tox
+  | \.venv
+  | build
+  | dist
+)/
+'''
+
+[tool.isort]
+multi_line_output = 3
+include_trailing_comma = true
+force_grid_wrap = 0
+use_parentheses = true
+line_length = 88
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
