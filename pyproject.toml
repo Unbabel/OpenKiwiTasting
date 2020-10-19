@@ -1,0 +1,28 @@
+[tool.poetry]
+name = "openkiwi-tasting"
+version = "0.1.0"
+description = "OpenKiwi demonstration app."
+authors = ["AI Research, Unbabel <openkiwi@unbabel.com>"]
+license = "AGPL-3.0"
+readme = 'README.md'
+homepage = 'https://github.com/Unbabel/OpenKiwi-Tasting'
+repository = 'https://github.com/Unbabel/OpenKiwi-Tasting'
+keywords = ['OpenKiwi', 'Quality Estimation', 'Machine Translation', 'Unbabel']
+packages = [
+    {include = "kiwi"},
+]
+include = ['pyproject.toml', 'LICENSE']
+
+[tool.poetry.dependencies]
+python = "^3.7"
+streamlit = "^0.69.2"
+openkiwi = "^2.0.0"
+st-annotated-text = "^1.0.1"
+
+[tool.poetry.dev-dependencies]
+black = "^20.8b1"
+isort = "^5.6.4"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
