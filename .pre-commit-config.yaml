@@ -1,0 +1,44 @@
+default_language_version:
+    python: python3.7
+fail_fast: true
+repos:
+  - repo: https://github.com/psf/black
+    rev: 20.8b1
+    hooks:
+      - id: black
+
+  - repo: https://gitlab.com/pycqa/flake8
+    rev: 3.8.4
+    hooks:
+      - id: flake8
+
+  - repo: https://github.com/timothycrosley/isort
+    rev: 5.6.4
+    hooks:
+      - id: isort
+        additional_dependencies: [ toml ]
+        exclude: ^.*/?setup\.py$
+
+#  - repo: https://github.com/avlm/pre-commit-poetry-export
+#    rev: 0.1.1
+#    hooks:
+#      - id: poetry-export
+
+  - repo: local
+    hooks:
+      - id: poetry-lock
+        name: poetry-lock
+        description: run poetry lock to update lock file
+        entry: poetry lock
+        language: python
+        language_version: python3
+        pass_filenames: false
+
+      - id: poetry-export
+        name: poetry-export
+        description: run poetry export to sync lock file with requirements.txt
+        entry: poetry export
+        language: python
+        language_version: python3
+        pass_filenames: false
+        args: ["-f", "requirements.txt", "--without-hashes", "--dev", "-o", "requirements.txt"]

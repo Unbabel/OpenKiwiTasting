@@ -25,6 +25,7 @@ st-annotated-text = "^1.0.1"
 [tool.poetry.dev-dependencies]
 black = "^20.8b1"
 isort = "^5.6.4"
+pre-commit = "^2.7.1"
 
 [tool.black]
 skip-string-normalization = true  # Don't switch to double quotes

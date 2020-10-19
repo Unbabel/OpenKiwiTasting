@@ -134,8 +134,7 @@ def main():
     # ---------------------------------------------------------------------------------
     st.header("Build a translation pair")
     st.write(
-        "Select a predefined source sentence and/or edit both source and target "
-        "sentences."
+        "Select a predefined source sentence and/or edit both source and target sentences."
     )
 
     source_sentence = target_sentence = ''
