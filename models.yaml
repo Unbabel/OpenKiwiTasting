@@ -1,0 +1,7 @@
+models:
+    XLMR-base en-de:
+        LP: en-de
+        URL: https://github.com/Unbabel/OpenKiwi/releases/download/2.1.0/xlmr-en-de.ckpt
+    XLMR-base en-zh:
+        LP: en-de
+        URL: https://github.com/Unbabel/OpenKiwi/releases/download/2.1.0/xlmr-en-zh.ckpt

@@ -21,22 +21,13 @@ from tempfile import NamedTemporaryFile
 import streamlit as st
 from annotated_text import annotated_text
 from kiwi import load_system
-from kiwi.constants import BAD, OK
+from kiwi.constants import BAD
+from streamlit.config import set_option
 from streamlit.uploaded_file_manager import UploadedFile
 
-from kiwi_tasting.predefined_data import (
-    sentence_hter,
-    source_sentences,
-    target_sentences,
-    word_tags,
-)
-
-predefined_lines = {
-    'source': source_sentences,
-    'target': target_sentences,
-    'tags': word_tags,
-    'scores': sentence_hter,
-}
+from kiwi_tasting.data import Dataset, DataSettings
+from kiwi_tasting.file_utils import cached_path
+from kiwi_tasting.models import ModelsSettings
 
 
 def probability_to_rgb(probability: float):
@@ -78,7 +69,19 @@ def load_model(uploaded_file):
     return model
 
 
+@st.cache(allow_output_mutation=True, show_spinner=True)
+def retrieve_model(path):
+    if path:
+        return load_system(cached_path(path, resume_download=True))
+    return None
+
+
 def main():
+    model_settings = ModelsSettings()
+    data_settings = DataSettings()
+    datasets = {lp: Dataset(config) for lp, config in data_settings.data.items()}
+
+    set_option('server.maxUploadSize', 2000)
     st.beta_set_page_config(
         page_title='Kiwi Tasting - OpenKiwi demonstration',
         page_icon=anchor_path('./assets/img/logo.ico'),
@@ -97,48 +100,24 @@ def main():
     )
     st.sidebar.markdown("---")
 
-    st.sidebar.header("QE Models")
-    uploaded_files = st.sidebar.file_uploader(
-        "Load a pretrained QE Model", accept_multiple_files=True
+    st.sidebar.header("Available QE Models")
+    selected_model = st.sidebar.radio(
+        'Select a pretrained model to use',
+        list(model_settings.models.keys()),
+        # format_func=lambda model_option:
+        # f"{model_option} ({model_settings.models[model_option].LP})",
     )
-    models = {}
-    for uploaded_file in uploaded_files:
-        if uploaded_file.name not in models:
-            new_model = load_model(uploaded_file)
-            models[uploaded_file.name] = new_model
-    st.sidebar.write('Select loaded models to use')
-    selected_models = {}
-    if not models:
-        st.sidebar.write('No model loaded')
-    else:
-        for name in models:
-            selected_models[name] = st.sidebar.checkbox(name, True)
+
+    loaded_model = retrieve_model(model_settings.models[selected_model].URL)
+    use_models = {selected_model: loaded_model}
     st.sidebar.markdown("---")
 
-    st.sidebar.header("Input")
-    st.sidebar.write("Specify paths to input data.")
-    lines = {}
-    source_path = st.sidebar.file_uploader("Source sentences")
-    target_path = st.sidebar.file_uploader("Target sentences")
-    if source_path:
-        lines['source'] = read_lines(source_path)
-    if target_path:
-        lines['target'] = read_lines(target_path)
+    st.sidebar.header("Available datasets")
+    selected_dataset_name = st.sidebar.radio(
+        'Select a dataset to use', list(datasets.keys())
+    )
 
-    st.sidebar.subheader('Gold input (if no model is provided)')
-    tags_path = st.sidebar.file_uploader("Tags")
-    probs_path = st.sidebar.file_uploader("Probabilities")
-    scores_path = st.sidebar.file_uploader("Sentences HTER (scores)")
-    if tags_path:
-        lines['tags'] = read_lines(tags_path)
-        st.sidebar.write('tags:', len(lines['tags']))
-    if probs_path:
-        lines['probs'] = read_lines(probs_path)
-    if scores_path:
-        lines['scores'] = read_lines(scores_path)
-
-    if not lines:
-        lines = predefined_lines
+    use_dataset: Dataset = datasets[selected_dataset_name]
 
     # ---------------------------------------------------------------------------------
     st.header("Build a translation pair")
@@ -148,78 +127,123 @@ def main():
     )
 
     source_sentence = target_sentence = ''
-    i = None
-    if 'source' in lines:
-        i = lines['source'].index(
-            st.selectbox(
-                "Choose a predefined source sentence to display",
-                options=lines['source'],
-            )
+    gold_sentence_scores = gold_target_tags = gold_source_tags = None
+    if use_dataset:
+        i = st.slider(
+            'Scroll through dataset',
+            min_value=0,
+            max_value=len(use_dataset.source_sentences),
+            value=0,
         )
-        source_sentence = lines['source'][i]
-        if 'target' in lines:
-            target_sentence = lines['target'][i]
+
+        source_sentence = use_dataset.source_sentences[i]
+        target_sentence = use_dataset.target_sentences[i]
+        gold_sentence_scores = use_dataset.sentence_scores[i]
+        gold_target_tags = use_dataset.target_tags[i]
+        if use_dataset.source_tags:
+            gold_source_tags = use_dataset.source_tags[i]
 
     col1, col2 = st.beta_columns(2)
     with col1:
-        source = st.text_area('Source sentence', value=source_sentence)
-    with col2:
         target = st.text_area('Target sentence', value=target_sentence)
+    with col2:
+        source = st.text_area('Source sentence', value=source_sentence)
 
     st.header('Quality Estimation')
-    if selected_models:
-        use_models = [name for name, selected in selected_models.items() if selected]
-        for model_name in use_models:
-            model = models[model_name]
-            st.subheader(
-                f'Using model: {model.system.__class__.__name__} ({model_name})'
-            )
+    for model_name, model in use_models.items():
+        st.subheader(f'Using model: {model.system.__class__.__name__} ({model_name})')
 
-            prediction = model.predict([source], [target])
-            probs = prediction.target_tags_BAD_probabilities[0]
-            tags = prediction.target_tags_labels[0]
+        prediction = model.predict([source], [target])
 
-            if prediction.sentences_hter:
-                hter = prediction.sentences_hter[0]
-                st.write('Sentence fixing effort (HTER): ', hter)
+        predicted_target_probabilities = prediction.target_tags_BAD_probabilities[0]
+        predicted_target_tags = prediction.target_tags_labels[0]
 
-            target_tokens = target.split()
-            if tags and probs:
-                text = [
-                    (token, tag, probability_to_rgb(prob))
-                    for token, tag, prob in zip(target_tokens, tags, probs)
-                ]
-                annotated_text(*text)
-    if i is not None:
-        st.subheader('Using predefined data')
-        target_tokens = lines['target'][i].split()
-        tags = probs = hter = None
-        if 'probs' in lines:
-            probs = lines['probs'][i]
-            tags = [OK if int(prob <= 0.5) == 0 else BAD for prob in probs]
-        elif 'tags' in lines:
-            tags = lines['tags'][i].split()
-            if len(tags) == 2 * len(target_tokens) + 1:
-                tags = tags[1::2]
-            probs = [1.0 if tag == BAD else 0.0 for tag in tags]
-        else:
-            st.error(
-                'No model and no gold data specified; cannot render quality scores'
-            )
-        if 'scores' in lines:
-            hter = lines['scores'][i]
+        predicted_source_probabilities = predicted_source_tags = None
+        if prediction.source_tags_labels:
+            predicted_source_probabilities = prediction.source_tags_BAD_probabilities[0]
+            predicted_source_tags = prediction.source_tags_labels[0]
 
-        if hter:
+        if prediction.sentences_hter:
+            hter = prediction.sentences_hter[0]
             st.write('Sentence fixing effort (HTER): ', hter)
 
-        if tags and probs:
-            text = [
-                (token, tag, probability_to_rgb(prob))
-                for token, tag, prob in zip(target_tokens, tags, probs)
-            ]
-            annotated_text(*text)
+        col1, col2 = st.beta_columns(2)
+        with col1:
+            target_tokens = target.split()
+            if predicted_target_tags and predicted_target_probabilities:
+                text = [
+                    (token, tag, probability_to_rgb(prob))
+                    for token, tag, prob in zip(
+                        target_tokens,
+                        predicted_target_tags,
+                        predicted_target_probabilities,
+                    )
+                ]
+                annotated_text(*text)
+            else:
+                st.write('No target tags prediction')
+        with col2:
+            if predicted_source_tags and predicted_source_probabilities:
+                source_tokens = source.split()
+                text = [
+                    (token, tag, probability_to_rgb(prob))
+                    for token, tag, prob in zip(
+                        source_tokens,
+                        predicted_source_tags,
+                        predicted_source_probabilities,
+                    )
+                ]
+                annotated_text(*text)
+            else:
+                st.write('No source tags prediction')
+
+    if gold_target_tags or gold_sentence_scores:
+        st.subheader('From dataset')
+        if gold_sentence_scores:
+            hter = float(gold_sentence_scores.strip())
+            st.write('Sentence fixing effort (HTER): ', hter)
+
+        col1, col2 = st.beta_columns(2)
+        with col1:
+            if gold_target_tags:
+                target_tokens = target_sentence.split()
+                predicted_target_tags = gold_target_tags.split()
+                if len(predicted_target_tags) == 2 * len(target_tokens) + 1:
+                    predicted_target_tags = predicted_target_tags[1::2]
+                predicted_target_probabilities = [
+                    1.0 if tag == BAD else 0.0 for tag in predicted_target_tags
+                ]
+                text = [
+                    (token, tag, probability_to_rgb(prob))
+                    for token, tag, prob in zip(
+                        target_tokens,
+                        predicted_target_tags,
+                        predicted_target_probabilities,
+                    )
+                ]
+                annotated_text(*text)
+            else:
+                st.write('No gold target tags specified')
+        with col2:
+            if gold_source_tags:
+                source_tokens = source_sentence.split()
+                source_tags = gold_source_tags.split()
+                if len(source_tags) == 2 * len(source_tokens) + 1:
+                    source_tags = source_tags[1::2]
+                source_probabilities = [
+                    1.0 if tag == BAD else 0.0 for tag in source_tags
+                ]
+                text = [
+                    (token, tag, probability_to_rgb(prob))
+                    for token, tag, prob in zip(
+                        source_tokens, source_tags, source_probabilities
+                    )
+                ]
+                annotated_text(*text)
+            else:
+                st.write('No gold source tags specified')
     else:
-        st.error('No model and no gold data specified; cannot render quality scores')
+        st.error('No gold data specified; cannot render tags and quality scores')
 
 
 if __name__ == "__main__":

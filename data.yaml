@@ -1,0 +1,18 @@
+data:
+    en-de:
+        directory: kiwi_tasting/assets/data/en-de/
+        source: dev.src
+        target: dev.mt
+
+        sentence_scores: dev.hter
+        target_tags: dev.tags
+        source_tags: dev.source_tags
+
+    en-zh:
+        directory: kiwi_tasting/assets/data/en-zh/
+        source: dev.src
+        target: dev.mt
+
+        sentence_scores: dev.hter
+        target_tags: dev.tags
+        source_tags: dev.source_tags
