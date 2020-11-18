@@ -17,19 +17,16 @@ import tempfile
 from contextlib import contextmanager
 from functools import partial
 from pathlib import Path
-from typing import Dict, Optional, Union
+from typing import BinaryIO, Dict, Optional, Union
 from urllib.parse import urlparse
 from zipfile import ZipFile, is_zipfile
 
 import requests
+import streamlit as st
 from filelock import FileLock
+from tqdm import tqdm
 from transformers import TRANSFORMERS_CACHE
-from transformers.file_utils import (
-    http_get,
-    http_user_agent,
-    is_remote_url,
-    url_to_filename,
-)
+from transformers.file_utils import http_user_agent, is_remote_url, url_to_filename
 
 
 def cached_path(
@@ -307,3 +304,38 @@ def get_from_cache(
             json.dump(meta, meta_file)
 
     return cache_path
+
+
+def http_get(
+    url: str,
+    temp_file: BinaryIO,
+    proxies=None,
+    resume_size=0,
+    user_agent: Union[Dict, str, None] = None,
+):
+    """Download remote file. Do not gobble up errors."""
+    headers = {"user-agent": http_user_agent(user_agent)}
+    if resume_size > 0:
+        headers["Range"] = "bytes=%d-" % (resume_size,)
+    r = requests.get(url, stream=True, proxies=proxies, headers=headers)
+    r.raise_for_status()
+    content_length = r.headers.get("Content-Length")
+    total = resume_size + int(content_length) if content_length is not None else None
+    progress = tqdm(
+        unit="B",
+        unit_scale=True,
+        total=total,
+        initial=resume_size,
+        desc="Downloading",
+        disable=False,
+    )
+    current_percentage = resume_size / total
+    download_bar = st.progress(current_percentage)
+
+    for chunk in r.iter_content(chunk_size=1024):
+        if chunk:  # filter out keep-alive new chunks
+            progress.update(len(chunk))
+            current_percentage += len(chunk) / total
+            download_bar.progress(current_percentage)
+            temp_file.write(chunk)
+    progress.close()

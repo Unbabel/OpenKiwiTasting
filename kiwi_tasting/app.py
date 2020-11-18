@@ -21,7 +21,6 @@ import streamlit as st
 from annotated_text import annotated_text
 from kiwi import load_system
 from kiwi.constants import BAD
-from streamlit.config import set_option
 
 from kiwi_tasting.data import Dataset, DataSettings
 from kiwi_tasting.file_utils import cached_path
@@ -43,10 +42,13 @@ def anchor_path(path, anchor_dir=None) -> str:
     return str((anchor_dir / path).resolve())
 
 
-@st.cache(allow_output_mutation=True, show_spinner=True)
+# @st.cache(allow_output_mutation=True, show_spinner=True)
 def retrieve_model(path):
     if path:
-        return load_system(cached_path(path, resume_download=True))
+        with st.spinner('Downloading pre-trained model...'):
+            local_path = cached_path(path, resume_download=True)
+        with st.spinner('Loading model...'):
+            return load_system(local_path)
     return None
 
 
@@ -55,7 +57,6 @@ def main():
     data_settings = DataSettings()
     datasets = {lp: Dataset(config) for lp, config in data_settings.data.items()}
 
-    set_option('server.maxUploadSize', 2000)
     st.beta_set_page_config(
         page_title='Kiwi Tasting - OpenKiwi demonstration',
         page_icon=anchor_path('./assets/img/logo.ico'),
