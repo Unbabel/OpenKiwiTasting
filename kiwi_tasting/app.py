@@ -16,14 +16,12 @@
 #
 
 from pathlib import Path
-from tempfile import NamedTemporaryFile
 
 import streamlit as st
 from annotated_text import annotated_text
 from kiwi import load_system
 from kiwi.constants import BAD
 from streamlit.config import set_option
-from streamlit.uploaded_file_manager import UploadedFile
 
 from kiwi_tasting.data import Dataset, DataSettings
 from kiwi_tasting.file_utils import cached_path
@@ -43,30 +41,6 @@ def anchor_path(path, anchor_dir=None) -> str:
         anchor_dir = Path(anchor_dir)
 
     return str((anchor_dir / path).resolve())
-
-
-@st.cache(allow_output_mutation=True)
-def read_lines(uploaded_file):
-    return [line.decode("utf-8").strip() for line in uploaded_file.readlines()]
-
-
-@st.cache(
-    hash_funcs={UploadedFile: lambda x: x.id},
-    allow_output_mutation=True,
-    show_spinner=True,
-)
-def load_model(uploaded_file):
-    model = None
-    if uploaded_file:
-        temp_file = NamedTemporaryFile(delete=False)
-        temp_file.write(uploaded_file.read())
-        temp_file.close()
-
-        model = load_system(temp_file.name)
-
-        Path(temp_file.name).unlink()
-
-    return model
 
 
 @st.cache(allow_output_mutation=True, show_spinner=True)
@@ -103,13 +77,16 @@ def main():
     st.sidebar.header("Available QE Models")
     selected_model = st.sidebar.radio(
         'Select a pretrained model to use',
-        list(model_settings.models.keys()),
+        ['None'] + list(model_settings.models.keys()),
         # format_func=lambda model_option:
         # f"{model_option} ({model_settings.models[model_option].LP})",
     )
 
-    loaded_model = retrieve_model(model_settings.models[selected_model].URL)
-    use_models = {selected_model: loaded_model}
+    if selected_model != 'None':
+        loaded_model = retrieve_model(model_settings.models[selected_model].URL)
+        use_models = {selected_model: loaded_model}
+    else:
+        use_models = {}
     st.sidebar.markdown("---")
 
     st.sidebar.header("Available datasets")
