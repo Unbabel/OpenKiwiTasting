@@ -42,7 +42,12 @@ def anchor_path(path, anchor_dir=None) -> str:
     return str((anchor_dir / path).resolve())
 
 
-# @st.cache(allow_output_mutation=True, show_spinner=True)
+@st.cache(
+    allow_output_mutation=True,
+    show_spinner=False,
+    max_entries=1,
+    suppress_st_warning=True,
+)
 def retrieve_model(path):
     if path:
         with st.spinner('Downloading pre-trained model...'):
