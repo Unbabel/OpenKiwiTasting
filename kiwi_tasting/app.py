@@ -129,8 +129,8 @@ def main():
     if use_dataset:
         df = pandas.DataFrame(
             {
-                'target': use_dataset.target_sentences,
                 'source': use_dataset.source_sentences,
+                'target': use_dataset.target_sentences,
             }
         )
 
@@ -169,11 +169,12 @@ def main():
 
     col1, col2 = st.beta_columns(2)
     with col1:
-        target = st.text_area('Target sentence', value=target_sentence)
-    with col2:
         source = st.text_area('Source sentence', value=source_sentence)
+    with col2:
+        target = st.text_area('Target sentence', value=target_sentence)
 
     st.header('Quality Estimation')
+    show_source = st.checkbox('Show source side', value=False)
     for model_name, model in use_models.items():
         st.subheader(f'Using model: {model.system.__class__.__name__} ({model_name})')
 
@@ -189,12 +190,21 @@ def main():
 
         if prediction.sentences_hter:
             hter = prediction.sentences_hter[0]
-            st.write('Sentence fixing effort (HTER): ', hter)
+            st.write('Target sentence fixing effort (HTER): ', hter)
 
-        col1, col2 = st.beta_columns(2)
-        with col1:
-            target_tokens = target.split()
+        if show_source:
+            col1, col2 = st.beta_columns(2)
+            with col1:
+                source_side = st.beta_container()
+            with col2:
+                target_side = st.beta_container()
+        else:
+            target_side = st.beta_container()
+            source_side = None
+
+        with target_side:
             if predicted_target_tags and predicted_target_probabilities:
+                target_tokens = target.split()
                 text = [
                     (token, tag, probability_to_rgb(prob))
                     for token, tag, prob in zip(
@@ -203,32 +213,44 @@ def main():
                         predicted_target_probabilities,
                     )
                 ]
+                st.write('Target tags')
                 annotated_text(*text)
             else:
                 st.write('No target tags prediction')
-        with col2:
-            if predicted_source_tags and predicted_source_probabilities:
-                source_tokens = source.split()
-                text = [
-                    (token, tag, probability_to_rgb(prob))
-                    for token, tag, prob in zip(
-                        source_tokens,
-                        predicted_source_tags,
-                        predicted_source_probabilities,
-                    )
-                ]
-                annotated_text(*text)
-            else:
-                st.write('No source tags prediction')
+        if source_side:
+            with source_side:
+                if predicted_source_tags and predicted_source_probabilities:
+                    source_tokens = source.split()
+                    text = [
+                        (token, tag, probability_to_rgb(prob))
+                        for token, tag, prob in zip(
+                            source_tokens,
+                            predicted_source_tags,
+                            predicted_source_probabilities,
+                        )
+                    ]
+                    st.write('Source tags')
+                    annotated_text(*text)
+                else:
+                    st.write('No source tags prediction')
 
     if gold_target_tags or gold_sentence_scores:
         st.subheader('From dataset')
         if gold_sentence_scores:
             hter = float(gold_sentence_scores.strip())
-            st.write('Sentence fixing effort (HTER): ', hter)
+            st.write('Target sentence fixing effort (HTER): ', hter)
 
-        col1, col2 = st.beta_columns(2)
-        with col1:
+        if show_source:
+            col1, col2 = st.beta_columns(2)
+            with col1:
+                source_side = st.beta_container()
+            with col2:
+                target_side = st.beta_container()
+        else:
+            target_side = st.beta_container()
+            source_side = None
+
+        with target_side:
             if gold_target_tags:
                 target_tokens = target_sentence.split()
                 predicted_target_tags = gold_target_tags.split()
@@ -245,27 +267,30 @@ def main():
                         predicted_target_probabilities,
                     )
                 ]
+                st.write('Target tags')
                 annotated_text(*text)
             else:
                 st.write('No gold target tags specified')
-        with col2:
-            if gold_source_tags:
-                source_tokens = source_sentence.split()
-                source_tags = gold_source_tags.split()
-                if len(source_tags) == 2 * len(source_tokens) + 1:
-                    source_tags = source_tags[1::2]
-                source_probabilities = [
-                    1.0 if tag == BAD else 0.0 for tag in source_tags
-                ]
-                text = [
-                    (token, tag, probability_to_rgb(prob))
-                    for token, tag, prob in zip(
-                        source_tokens, source_tags, source_probabilities
-                    )
-                ]
-                annotated_text(*text)
-            else:
-                st.write('No gold source tags specified')
+        if source_side:
+            with source_side:
+                if gold_source_tags:
+                    source_tokens = source_sentence.split()
+                    source_tags = gold_source_tags.split()
+                    if len(source_tags) == 2 * len(source_tokens) + 1:
+                        source_tags = source_tags[1::2]
+                    source_probabilities = [
+                        1.0 if tag == BAD else 0.0 for tag in source_tags
+                    ]
+                    text = [
+                        (token, tag, probability_to_rgb(prob))
+                        for token, tag, prob in zip(
+                            source_tokens, source_tags, source_probabilities
+                        )
+                    ]
+                    st.write('Source tags')
+                    annotated_text(*text)
+                else:
+                    st.write('No gold source tags specified')
     else:
         st.error('No gold data specified; cannot render tags and quality scores')
 
