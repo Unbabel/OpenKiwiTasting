@@ -17,6 +17,7 @@
 
 from pathlib import Path
 
+import pandas
 import streamlit as st
 from annotated_text import annotated_text
 from kiwi import load_system
@@ -55,6 +56,20 @@ def retrieve_model(path):
         with st.spinner('Loading model...'):
             return load_system(local_path)
     return None
+
+
+# Keep the state between actions
+@st.cache(allow_output_mutation=True)
+def current_sentence_state():
+    return {"index": 0}
+
+
+def highlight(s, index, color='yellow'):
+    if s.name == index:
+        hl = f"background-color: {color}"
+    else:
+        hl = ""
+    return [hl] * len(s)
 
 
 def main():
@@ -112,12 +127,33 @@ def main():
     source_sentence = target_sentence = ''
     gold_sentence_scores = gold_target_tags = gold_source_tags = None
     if use_dataset:
+        df = pandas.DataFrame(
+            {
+                'target': use_dataset.target_sentences,
+                'source': use_dataset.source_sentences,
+            }
+        )
+
+        current_state = current_sentence_state()
+
+        col1, col2, *_ = st.beta_columns(12)
+        with col1:
+            previous_pressed = st.button('Previous')
+        with col2:
+            next_pressed = st.button('Next')
+
+        if previous_pressed:
+            current_state['index'] = max(0, current_state['index'] - 1)
+        if next_pressed:
+            current_state['index'] = min(len(df), current_state['index'] + 1)
+
         i = st.slider(
             'Scroll through dataset',
             min_value=0,
             max_value=len(use_dataset.source_sentences),
-            value=0,
+            value=current_state['index'],
         )
+        current_state['index'] = i
 
         source_sentence = use_dataset.source_sentences[i]
         target_sentence = use_dataset.target_sentences[i]
@@ -125,6 +161,11 @@ def main():
         gold_target_tags = use_dataset.target_tags[i]
         if use_dataset.source_tags:
             gold_source_tags = use_dataset.source_tags[i]
+
+        first_idx = max(i - 7, 0)
+        last_idx = min(first_idx + 15, len(use_dataset.source_sentences))
+        df_w = df.iloc[first_idx:last_idx].style.apply(highlight, index=i, axis=1)
+        st.dataframe(df_w, width=None, height=400)
 
     col1, col2 = st.beta_columns(2)
     with col1:
