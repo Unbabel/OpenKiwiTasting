@@ -162,11 +162,13 @@ def main():
         if use_dataset.source_tags:
             gold_source_tags = use_dataset.source_tags[i]
 
-        first_idx = max(i - 7, 0)
-        last_idx = min(first_idx + 15, len(use_dataset.source_sentences))
-        df_w = df.iloc[first_idx:last_idx].style.apply(highlight, index=i, axis=1)
-        st.dataframe(df_w, width=None, height=400)
+        with st.beta_expander('Preview sentences', expanded=False):
+            first_idx = max(i - 7, 0)
+            last_idx = min(first_idx + 15, len(use_dataset.source_sentences))
+            df_w = df.iloc[first_idx:last_idx].style.apply(highlight, index=i, axis=1)
+            st.dataframe(df_w, width=None, height=400)
 
+    st.write('### Edit sentences')
     col1, col2 = st.beta_columns(2)
     with col1:
         source = st.text_area('Source sentence', value=source_sentence)
